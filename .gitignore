@@ -8,3 +8,4 @@ npm-debug.log*
 .DS_Store
 print-agent/node_modules/
 __delete_test.txt
+__rm_test.txt
