@@ -83,10 +83,10 @@ export default function Sidebar({ user }) {
           />
         </div>
         <div className="min-w-0">
-          <div className="font-display text-white font-semibold text-[17px] leading-none truncate">
+          <div className="font-display italic text-white font-medium text-[18px] leading-none truncate">
             Yegane Pilav
           </div>
-          <div className="text-gold/50 text-[10px] leading-none mt-2 tracking-[0.14em] uppercase">
+          <div className="text-gold/50 text-[10px] leading-none mt-2 tracking-[0.18em] uppercase">
             Muniso POS
           </div>
         </div>

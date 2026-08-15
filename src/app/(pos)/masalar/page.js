@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { usePolling } from "@/hooks/usePolling";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import TableCard from "@/components/floor-plan/TableCard";
 import AddTableModal from "@/components/floor-plan/AddTableModal";
-import Button from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/format";
 
 async function fetchJson(url, opts) {
@@ -70,30 +70,30 @@ export default function MasalarPage() {
   const currentHall = halls.find((h) => h._id === currentHallId);
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Marka / özet banner */}
-      <div className="relative overflow-hidden rounded-xl2 border border-ink-border bg-gradient-to-br from-burgundy/25 via-ink-card to-ink-card p-5 sm:p-6">
+    <div className="flex flex-col gap-8">
+      {/* Marka / özet banner — sade, tipografi öncelikli */}
+      <div className="relative overflow-hidden rounded-xl2 border border-ink-border bg-ink-card p-6 sm:p-10">
         <div
-          className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-gold/10 blur-3xl"
+          className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-gold/5 blur-3xl"
           aria-hidden
         />
-        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="relative flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-gold text-xs font-bold tracking-widest uppercase mb-1">
+            <p className="text-gold/70 text-[10px] font-semibold tracking-[0.35em] uppercase mb-3">
               Yegane Pilavcısı
             </p>
-            <h2 className="font-display text-white text-xl sm:text-2xl font-semibold">
+            <h2 className="font-display italic text-white text-4xl sm:text-6xl font-medium tracking-tight leading-none">
               {currentHall?.name || "Salon"}
             </h2>
-            <p className="text-white/40 text-sm mt-1">
+            <p className="text-white/35 text-sm mt-4 tracking-wide">
               {tables.length} masadan {doluCount} tanesi dolu
               {odemeBekleyenCount > 0 && ` · ${odemeBekleyenCount} masa ödeme bekliyor`}
             </p>
           </div>
-          <div className="flex gap-3">
-            <StatPill label="Dolu Masa" value={`${doluCount}/${tables.length}`} />
-            <StatPill label="Açık Tutar" value={formatCurrency(acikTutar)} highlight />
-            <StatPill
+          <div className="flex divide-x divide-white/10 border-t border-white/10 pt-6 sm:border-t-0 sm:pt-0 sm:pl-8 sm:border-l">
+            <StatColumn label="Dolu Masa" value={`${doluCount}/${tables.length}`} />
+            <StatColumn label="Açık Tutar" value={formatCurrency(acikTutar)} highlight />
+            <StatColumn
               label="Bugünkü Ciro"
               value={todayRevenue === null ? "…" : formatCurrency(todayRevenue)}
               highlight
@@ -102,25 +102,32 @@ export default function MasalarPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-ink-border pb-4">
         {halls.length > 1 &&
-          halls.map((hall) => (
-            <button
-              key={hall._id}
-              onClick={() => setActiveHall(hall._id)}
-              className={`tap-target rounded-xl2 px-5 font-semibold text-sm border transition-all duration-200 ${
-                currentHallId === hall._id
-                  ? "bg-gradient-to-b from-burgundy-light to-burgundy border-burgundy text-white shadow-glow -translate-y-0.5"
-                  : "bg-ink-card border-ink-border text-white/60 hover:border-gold/30 hover:text-white"
-              }`}
-            >
-              {hall.name}
-            </button>
-          ))}
+          halls.map((hall) => {
+            const active = currentHallId === hall._id;
+            return (
+              <button
+                key={hall._id}
+                onClick={() => setActiveHall(hall._id)}
+                className={`tap-target pb-1 text-sm font-semibold tracking-wide border-b-2 transition-colors ${
+                  active
+                    ? "text-white border-gold"
+                    : "text-white/40 border-transparent hover:text-white/70"
+                }`}
+              >
+                {hall.name}
+              </button>
+            );
+          })}
         {isAdmin && (
-          <Button variant="ghost" className="ml-auto text-sm" onClick={() => setAddOpen(true)}>
-            + Masa Ekle
-          </Button>
+          <button
+            onClick={() => setAddOpen(true)}
+            className="tap-target ml-auto flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80 hover:text-gold transition-colors"
+          >
+            <Plus size={14} strokeWidth={2.5} />
+            Masa Ekle
+          </button>
         )}
       </div>
 
@@ -149,11 +156,13 @@ export default function MasalarPage() {
   );
 }
 
-function StatPill({ label, value, highlight }) {
+function StatColumn({ label, value, highlight }) {
   return (
-    <div className="rounded-xl2 bg-ink-soft/80 border border-ink-border px-4 py-2 text-center min-w-[92px]">
-      <div className={`font-black text-lg ${highlight ? "text-gold" : "text-white"}`}>{value}</div>
-      <div className="text-white/35 text-[10px] uppercase tracking-wide">{label}</div>
+    <div className="px-5 first:pl-0 flex flex-col gap-1.5 min-w-[84px]">
+      <div className={`font-display text-2xl sm:text-3xl leading-none ${highlight ? "text-gold" : "text-white"}`}>
+        {value}
+      </div>
+      <div className="text-white/30 text-[10px] uppercase tracking-[0.2em]">{label}</div>
     </div>
   );
 }
