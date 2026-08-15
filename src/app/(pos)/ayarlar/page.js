@@ -410,13 +410,25 @@ function RestaurantTab() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [ticketResetOpen, setTicketResetOpen] = useState(false);
+  const [counterValue, setCounterValue] = useState(null);
+  const [occupiedCount, setOccupiedCount] = useState(null);
+
+  const reloadCounterInfo = useCallback(async () => {
+    const [counterData, tablesData] = await Promise.all([
+      fetchJson("/api/settings/ticket-counter"),
+      fetchJson("/api/tables"),
+    ]);
+    setCounterValue(counterData.value);
+    setOccupiedCount((tablesData.tables || []).filter((t) => t.status !== "bos").length);
+  }, []);
 
   useEffect(() => {
     fetchJson("/api/settings").then((d) => {
       setRestaurant(d.restaurant);
       setBranch(d.branch);
     });
-  }, []);
+    reloadCounterInfo();
+  }, [reloadCounterInfo]);
 
   async function submit() {
     setLoading(true);
@@ -490,6 +502,21 @@ function RestaurantTab() {
           Adisyon numaralarını sıfırlar — bir sonraki açılan adisyon 1 numaradan başlar. Geçmiş
           adisyonların numaraları değişmez.
         </p>
+
+        <div className="rounded-xl2 bg-ink-soft border border-ink-border px-4 py-3 mb-3 flex flex-col gap-1">
+          <div className="text-white/70 text-sm">
+            Şu anki sayaç: <span className="font-display text-gold">{counterValue ?? "…"}</span>
+            {" "}— bir sonraki <b>yeni</b> adisyon #{(counterValue ?? 0) + 1} olacak.
+          </div>
+          {occupiedCount !== null && occupiedCount > 0 && (
+            <div className="text-gold/80 text-xs">
+              ⚠ Şu anda {occupiedCount} masa boş değil. Onlardaki eski adisyonların numarası
+              (varsa) sıfırlamadan etkilenmez — sadece yeni açacağınız adisyonlar 1&apos;den
+              başlar. Test için önce onları &ldquo;Masayı Boşalt&rdquo; ile temizleyin.
+            </div>
+          )}
+        </div>
+
         <Button
           className="!bg-red-700 hover:!bg-red-600 text-sm"
           onClick={() => setTicketResetOpen(true)}
@@ -498,22 +525,28 @@ function RestaurantTab() {
         </Button>
       </div>
 
-      <TicketCounterResetModal open={ticketResetOpen} onClose={() => setTicketResetOpen(false)} />
+      <TicketCounterResetModal
+        open={ticketResetOpen}
+        onClose={() => setTicketResetOpen(false)}
+        onReset={reloadCounterInfo}
+      />
     </div>
   );
 }
 
-function TicketCounterResetModal({ open, onClose }) {
+function TicketCounterResetModal({ open, onClose, onReset }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [newValue, setNewValue] = useState(null);
 
   useEffect(() => {
     if (open) {
       setPassword("");
       setError("");
       setDone(false);
+      setNewValue(null);
     }
   }, [open]);
 
@@ -521,12 +554,14 @@ function TicketCounterResetModal({ open, onClose }) {
     setLoading(true);
     setError("");
     try {
-      await fetchJson("/api/settings/ticket-counter/reset", {
+      const data = await fetchJson("/api/settings/ticket-counter/reset", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirmPassword: password }),
       });
+      setNewValue(data.value);
       setDone(true);
+      onReset?.();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -540,7 +575,9 @@ function TicketCounterResetModal({ open, onClose }) {
         {done ? (
           <>
             <p className="text-emerald-300 text-sm">
-              Sayaç sıfırlandı. Bir sonraki açılan adisyon 1 numaradan başlayacak.
+              Sayaç sıfırlandı — veritabanındaki güncel değer: <b>{newValue}</b>. Bir sonraki
+              açılan yeni adisyon #{(newValue ?? 0) + 1} olacak. (Zaten açık, eski adisyonların
+              numarası bundan etkilenmez.)
             </p>
             <Button variant="ghost" onClick={onClose}>
               Kapat

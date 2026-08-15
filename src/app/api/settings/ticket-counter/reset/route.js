@@ -18,11 +18,11 @@ export const DELETE = withApi("settings:manage", async (req, ctx, session) => {
     throw err;
   }
 
-  await Counter.findOneAndUpdate(
+  const counter = await Counter.findOneAndUpdate(
     { branchId, name: "ticketNo" },
     { $set: { value: 0 } },
-    { upsert: true }
+    { upsert: true, new: true }
   );
 
-  return jsonOk({ reset: true });
+  return jsonOk({ reset: true, value: counter.value });
 });
