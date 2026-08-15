@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/constants";
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   {
     href: "/masalar",
     label: "Masalar",
@@ -57,7 +57,7 @@ const NAV_ITEMS = [
   },
 ];
 
-function initials(name) {
+export function initials(name) {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0][0].toUpperCase();
