@@ -1,0 +1,10 @@
+# Caddy, sunucudaki bu dosyayı okuyup otomatik olarak ücretsiz bir SSL
+# sertifikası alır (Let's Encrypt) ve https://ALAN_ADINIZ adresinden gelen
+# trafiği arka planda çalışan Muniso'ya (localhost:3000) yönlendirir.
+#
+# AŞAĞIDAKİ "muniso.duckdns.org" KISMINI, Faz 3'te sizin için oluşturacağımız
+# gerçek alan adıyla değiştireceğiz. Şimdilik bu dosyayı olduğu gibi bırakın.
+
+muniso.duckdns.org {
+	reverse_proxy localhost:3000
+}

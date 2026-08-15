@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Font dosyaları layout.js'de @fontsource paketleriyle yükleniyor. */
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: #0E0B0C;
+  background-image:
+    radial-gradient(1200px 600px at 100% -10%, rgba(123, 30, 43, 0.16), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(201, 162, 39, 0.08), transparent 55%);
+  background-attachment: fixed;
+  color: #F4EDE4;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #161213;
+}
+::-webkit-scrollbar-thumb {
+  background: #2B2325;
+  border-radius: 8px;
+}
+
+.tap-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+@layer components {
+  .btn {
+    @apply tap-target inline-flex items-center justify-center gap-2 rounded-xl2 px-4 py-3 font-semibold transition-all duration-200 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-burgundy text-white shadow-glow hover:bg-burgundy-light hover:-translate-y-0.5;
+  }
+  .btn-gold {
+    @apply btn bg-gold text-ink shadow-[0_6px_20px_rgba(201,162,39,0.25)] hover:bg-gold-light hover:-translate-y-0.5;
+  }
+  .btn-ghost {
+    @apply btn bg-ink-card text-white border border-ink-border hover:border-gold/50 hover:bg-ink-card/70;
+  }
+  .card {
+    @apply bg-ink-card border border-ink-border rounded-xl2 shadow-card;
+  }
+  .card-hover {
+    @apply transition-all duration-200 hover:border-gold/40 hover:-translate-y-0.5 hover:shadow-glow;
+  }
+  .input-field {
+    @apply tap-target w-full rounded-xl2 bg-ink-soft border border-ink-border px-4 py-3 text-white placeholder-white/30 outline-none focus:border-gold/60 transition-colors;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+  .section-label {
+    @apply text-white/30 text-[10px] font-bold uppercase tracking-[0.18em];
+  }
+  .font-display {
+    font-family: var(--font-display), Georgia, serif;
+  }
+}
