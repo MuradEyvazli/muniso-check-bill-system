@@ -205,10 +205,15 @@ export default function TableOrderPage() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)]">
+    // Mobilde (lg altı) bu iki bölüm alt alta dizildiği için sabit bir toplam
+    // yükseklik (h-[calc(100vh-140px)]) her ikisini birden sıkıştırıp içeriğin
+    // üst üste binmesine yol açıyordu. Mobilde yükseklik doğal akışa bırakılıp
+    // her bölüme kendi mantıklı yüksekliği (aşağıda) veriliyor; lg ve üzerinde
+    // eski, sabit-yükseklikli yan yana düzen aynen korunuyor.
+    <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-140px)]">
       {ticket ? (
         <>
-          <div className="flex-1 min-h-0 card p-4">
+          <div className="h-[58vh] lg:h-auto lg:flex-1 min-h-0 card p-4">
             <ProductGrid
               categories={menu.categories}
               products={menu.products}
@@ -217,7 +222,7 @@ export default function TableOrderPage() {
             />
           </div>
 
-          <div className="w-full lg:w-96 shrink-0 card p-4 flex flex-col min-h-0">
+          <div className="w-full lg:w-96 shrink-0 card p-4 flex flex-col lg:min-h-0">
             <TicketPanel ticket={ticket} onItemClick={setEditingItem} />
 
             <div className="grid grid-cols-2 gap-2 mt-3">

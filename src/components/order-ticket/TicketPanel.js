@@ -16,7 +16,7 @@ export default function TicketPanel({ ticket, onItemClick }) {
   if (!ticket) return null;
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col lg:h-full min-h-0">
       <div className="flex items-center justify-between mb-3">
         <div>
           <div className="text-white font-bold">Adisyon #{ticket.ticketNo}</div>
@@ -24,7 +24,11 @@ export default function TicketPanel({ ticket, onItemClick }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2 pb-2">
+      {/* Mobilde sayfanın kendisi (dışarıdaki kart) sabit yüksekliğe zorlanmıyor,
+          bu yüzden burada da flex-1 yerine max-h ile sınırlı, kendi içinde
+          kayan bir liste kullanıyoruz — aksi halde flex-1, esnek olmayan bir
+          üst kapsayıcıda 0 yüksekliğe çökebiliyor ve içerik üst üste biniyordu. */}
+      <div className="max-h-[38vh] lg:max-h-none lg:flex-1 overflow-y-auto min-h-0 flex flex-col gap-2 pb-2">
         {ticket.items.length === 0 && (
           <p className="text-white/30 text-sm text-center py-10">
             Henüz ürün eklenmedi. Soldan ürün seçin.
