@@ -8,11 +8,9 @@ const Branch = require("../models/Branch");
 const User = require("../models/User");
 const Hall = require("../models/Hall");
 const Table = require("../models/Table");
-const Category = require("../models/Category");
-const Product = require("../models/Product");
-const OptionGroup = require("../models/OptionGroup");
 
 const menu = require("./data/yeganePilavciMenu");
+const { seedMenu } = require("./menuSeeder");
 
 const RESTAURANT_NAME = process.env.SEED_RESTAURANT_NAME || "Yegane Pilav";
 const RESTAURANT_SLUG = "yegane-pilavcisi";
@@ -156,84 +154,6 @@ async function seedUsers(restaurantId, branchId) {
   }
 }
 
-async function resetMenu(branchId) {
-  const oldCategories = await Category.countDocuments({ branchId });
-  const oldProducts = await Product.countDocuments({ branchId });
-  const oldOptionGroups = await OptionGroup.countDocuments({ branchId });
-  await Product.deleteMany({ branchId });
-  await Category.deleteMany({ branchId });
-  await OptionGroup.deleteMany({ branchId });
-  if (oldCategories || oldProducts || oldOptionGroups) {
-    console.log(
-      `• Eski menü temizlendi (${oldCategories} kategori, ${oldProducts} ürün, ${oldOptionGroups} opsiyon grubu)`
-    );
-  }
-}
-
-async function seedOptionGroups(branchId) {
-  const groupMap = new Map();
-  for (const def of menu.optionGroups) {
-    const group = await OptionGroup.create({
-      branchId,
-      name: def.name,
-      selectionType: def.selectionType,
-      isRequired: def.isRequired,
-      options: def.options,
-    });
-    groupMap.set(def.name, group);
-    console.log(`✓ Opsiyon grubu oluşturuldu: ${group.name}`);
-  }
-  return groupMap;
-}
-
-async function seedCategoriesAndProducts(branchId, optionGroupMap) {
-  let categoryOrder = 0;
-  for (const catDef of menu.categories) {
-    const category = await Category.create({
-      branchId,
-      name: catDef.name,
-      description: catDef.description || "",
-      order: categoryOrder,
-    });
-    categoryOrder += 1;
-    console.log(`✓ Kategori oluşturuldu: ${category.name}`);
-
-    let productOrder = 0;
-    for (const productDef of catDef.products) {
-      const optionGroupIds = (productDef.optionGroups || [])
-        .map((name) => optionGroupMap.get(name)?._id)
-        .filter(Boolean);
-
-      const price = productDef.price ?? 0;
-
-      await Product.create({
-        branchId,
-        categoryId: category._id,
-        name: productDef.name,
-        description: productDef.description || "",
-        prepStation: catDef.prepStation || "mutfak",
-        prices: {
-          salon: price,
-          paket: price,
-          gelAl: price,
-          marketplace: price,
-        },
-        compareAtPrice: productDef.compareAtPrice || null,
-        calories: productDef.calories ?? null,
-        proteinGrams: productDef.proteinGrams ?? null,
-        badge: productDef.badge || "",
-        stockQuantity:
-          productDef.stockQuantity === undefined ? null : productDef.stockQuantity,
-        stockStatus: productDef.stockQuantity === 0 ? "kapali" : "acik",
-        order: productOrder,
-        optionGroupIds,
-      });
-      productOrder += 1;
-    }
-    console.log(`  ↳ ${catDef.products.length} ürün eklendi (${category.name})`);
-  }
-}
-
 async function run() {
   assertDemoCredentialsConfigured();
 
@@ -244,9 +164,7 @@ async function run() {
   const branch = await upsertBranch(restaurant._id);
   await seedHallsAndTables(branch._id);
   await seedUsers(restaurant._id, branch._id);
-  await resetMenu(branch._id);
-  const optionGroupMap = await seedOptionGroups(branch._id);
-  await seedCategoriesAndProducts(branch._id, optionGroupMap);
+  await seedMenu(branch._id);
 
   console.log("\n--- Giriş Bilgileri ---");
   for (const u of DEMO_USERS) {
