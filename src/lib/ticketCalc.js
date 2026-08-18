@@ -9,7 +9,7 @@ export function round2(n) {
 
 export function recalcTicketTotals(ticket) {
   let subtotal = 0;
-  let discountTotal = 0;
+  let itemDiscountTotal = 0;
 
   for (const item of ticket.items) {
     if (item.isVoided) continue;
@@ -29,13 +29,26 @@ export function recalcTicketTotals(ticket) {
     }
 
     subtotal += lineBase;
-    discountTotal += lineDiscount;
+    itemDiscountTotal += lineDiscount;
   }
+
+  // Ürün bazlı indirimlerden sonraki tutar üzerinden, ödeme ekranından uygulanan
+  // tek seferlik manuel indirim (ör. "tanıdık indirimi") ayrıca düşülür.
+  const afterItemDiscounts = Math.max(subtotal - itemDiscountTotal, 0);
+  let manualDiscountAmount = 0;
+  const manual = ticket.manualDiscount;
+  if (manual?.type === "percent") {
+    manualDiscountAmount = (afterItemDiscounts * (manual.value || 0)) / 100;
+  } else if (manual?.type === "amount") {
+    manualDiscountAmount = Math.min(manual.value || 0, afterItemDiscounts);
+  }
+
+  const discountTotal = itemDiscountTotal + manualDiscountAmount;
 
   ticket.subtotal = round2(subtotal);
   ticket.discountTotal = round2(discountTotal);
   ticket.grandTotal = round2(
-    subtotal - discountTotal + (ticket.serviceCharge || 0)
+    Math.max(subtotal - discountTotal, 0) + (ticket.serviceCharge || 0)
   );
 }
 

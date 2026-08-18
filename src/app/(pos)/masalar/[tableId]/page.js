@@ -298,6 +298,7 @@ export default function TableOrderPage() {
         ticket={paymentTicket}
         onPay={(payload) => handlePay(paymentTicket, payload)}
         onFullyPaid={handleFullyPaid}
+        role={user?.role}
       />
 
       <TableActionsModal
@@ -315,6 +316,7 @@ export default function TableOrderPage() {
         ticket={ticket}
         onSplitEqual={handleSplitEqual}
         onSplitByItem={handleSplitByItem}
+        role={user?.role}
       />
 
       <HistoryModal

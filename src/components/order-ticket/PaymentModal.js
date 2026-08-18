@@ -5,8 +5,16 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
+import { can } from "@/lib/permissions";
 
-export default function PaymentModal({ open, onClose, ticket, onPay, onFullyPaid }) {
+async function fetchJson(url, opts) {
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error);
+  return data.data;
+}
+
+export default function PaymentModal({ open, onClose, ticket, onPay, onFullyPaid, role }) {
   const [method, setMethod] = useState("nakit");
   const [amount, setAmount] = useState("");
   const [received, setReceived] = useState("");
@@ -15,10 +23,29 @@ export default function PaymentModal({ open, onClose, ticket, onPay, onFullyPaid
   const [payments, setPayments] = useState([]);
   const [paidTicketId, setPaidTicketId] = useState(null); // ödeme tamamlanınca fiş için ticket id'sini tutar
 
+  // Ödeme akışı boyunca güncel adisyon durumunu (özellikle indirim uygulandıktan
+  // sonraki yeni toplamı) burada tutuyoruz — `ticket` prop'u üst ekranda "dondurulmuş"
+  // bir kopya olduğu için indirim sonrası kendiliğinden güncellenmiyor.
+  const [liveTicket, setLiveTicket] = useState(ticket);
+
+  // İndirim paneli
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [discountTab, setDiscountTab] = useState("total"); // "total" | "percent" | "amount"
+  const [discountInput, setDiscountInput] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
+  const [discountLoading, setDiscountLoading] = useState(false);
+  const [discountError, setDiscountError] = useState("");
+
+  const canDiscount = can(role, "tickets:discount");
+
   const remaining = Math.max(
-    Math.round(((ticket?.grandTotal || 0) - (ticket?.paidTotal || 0)) * 100) / 100,
+    Math.round(((liveTicket?.grandTotal || 0) - (liveTicket?.paidTotal || 0)) * 100) / 100,
     0
   );
+
+  useEffect(() => {
+    setLiveTicket(ticket);
+  }, [ticket]);
 
   useEffect(() => {
     if (open) {
@@ -28,6 +55,11 @@ export default function PaymentModal({ open, onClose, ticket, onPay, onFullyPaid
       setMethod("nakit");
       setPayments([]);
       setPaidTicketId(null);
+      setShowDiscount(false);
+      setDiscountTab("total");
+      setDiscountInput("");
+      setDiscountReason("");
+      setDiscountError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ticket?._id]);
@@ -36,6 +68,8 @@ export default function PaymentModal({ open, onClose, ticket, onPay, onFullyPaid
     method === "nakit" && received
       ? Math.max(Number(received) - Number(amount), 0).toFixed(2)
       : null;
+
+  const activeManualDiscount = liveTicket?.manualDiscount?.type ? liveTicket.manualDiscount : null;
 
   async function submit() {
     setLoading(true);
@@ -47,11 +81,12 @@ export default function PaymentModal({ open, onClose, ticket, onPay, onFullyPaid
         receivedAmount: received ? Number(received) : undefined,
       });
       setPayments((prev) => [...prev, result.payment]);
+      setLiveTicket(result.ticket);
       if (result.fullyPaid) {
-        setPaidTicketId(ticket._id);
+        setPaidTicketId(liveTicket._id);
       } else {
         const newRemaining = Math.max(
-          Math.round((ticket.grandTotal - result.ticket.paidTotal) * 100) / 100,
+          Math.round((result.ticket.grandTotal - result.ticket.paidTotal) * 100) / 100,
           0
         );
         setAmount(newRemaining.toFixed(2));
@@ -61,6 +96,62 @@ export default function PaymentModal({ open, onClose, ticket, onPay, onFullyPaid
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function applyDiscount() {
+    setDiscountError("");
+    const value = Number(discountInput);
+    if (!discountInput || Number.isNaN(value) || value < 0) {
+      setDiscountError("Geçerli bir tutar girin");
+      return;
+    }
+    setDiscountLoading(true);
+    try {
+      const payload =
+        discountTab === "total"
+          ? { targetTotal: value, reason: discountReason }
+          : { type: discountTab, value, reason: discountReason };
+      const data = await fetchJson(`/api/tickets/${liveTicket._id}/discount`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setLiveTicket(data.ticket);
+      const newRemaining = Math.max(
+        Math.round((data.ticket.grandTotal - data.ticket.paidTotal) * 100) / 100,
+        0
+      );
+      setAmount(newRemaining.toFixed(2));
+      setDiscountInput("");
+      setDiscountReason("");
+      setShowDiscount(false);
+    } catch (err) {
+      setDiscountError(err.message);
+    } finally {
+      setDiscountLoading(false);
+    }
+  }
+
+  async function removeDiscount() {
+    setDiscountLoading(true);
+    setDiscountError("");
+    try {
+      const data = await fetchJson(`/api/tickets/${liveTicket._id}/discount`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: null, value: 0 }),
+      });
+      setLiveTicket(data.ticket);
+      const newRemaining = Math.max(
+        Math.round((data.ticket.grandTotal - data.ticket.paidTotal) * 100) / 100,
+        0
+      );
+      setAmount(newRemaining.toFixed(2));
+    } catch (err) {
+      setDiscountError(err.message);
+    } finally {
+      setDiscountLoading(false);
     }
   }
 
@@ -102,6 +193,104 @@ export default function PaymentModal({ open, onClose, ticket, onPay, onFullyPaid
           <span className="text-white/60 text-sm">Kalan Bakiye</span>
           <span className="text-gold font-bold text-xl">{formatCurrency(remaining)}</span>
         </div>
+
+        {activeManualDiscount && (
+          <div className="rounded-xl2 bg-gold/10 border border-gold/30 px-4 py-2 flex items-center justify-between">
+            <span className="text-gold/90 text-xs">
+              Uygulanan indirim: {activeManualDiscount.type === "percent"
+                ? `%${activeManualDiscount.value}`
+                : formatCurrency(activeManualDiscount.value)}
+              {activeManualDiscount.reason ? ` — ${activeManualDiscount.reason}` : ""}
+            </span>
+            {canDiscount && (
+              <button
+                className="text-white/40 text-xs underline shrink-0 ml-2"
+                onClick={removeDiscount}
+                disabled={discountLoading}
+              >
+                Kaldır
+              </button>
+            )}
+          </div>
+        )}
+
+        {canDiscount && (
+          <div>
+            {!showDiscount ? (
+              <button
+                className="text-gold/80 text-xs underline"
+                onClick={() => setShowDiscount(true)}
+              >
+                {activeManualDiscount ? "İndirimi Değiştir" : "İndirim / Özel Fiyat Uygula"}
+              </button>
+            ) : (
+              <div className="rounded-xl2 bg-ink-soft border border-ink-border p-3 flex flex-col gap-3">
+                <div className="grid grid-cols-3 gap-2 bg-ink rounded-xl2 p-1">
+                  {[
+                    { key: "total", label: "Yeni Toplam" },
+                    { key: "percent", label: "% İndirim" },
+                    { key: "amount", label: "₺ İndirim" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => {
+                        setDiscountTab(tab.key);
+                        setDiscountInput("");
+                        setDiscountError("");
+                      }}
+                      className={`tap-target rounded-xl2 text-xs font-semibold ${
+                        discountTab === tab.key ? "bg-gold text-ink" : "text-white/50"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {discountError && <div className="text-red-300 text-xs">{discountError}</div>}
+
+                <input
+                  type="number"
+                  className="input-field"
+                  value={discountInput}
+                  onChange={(e) => setDiscountInput(e.target.value)}
+                  placeholder={
+                    discountTab === "total"
+                      ? "Yeni toplam tutar (₺)"
+                      : discountTab === "percent"
+                        ? "% miktar"
+                        : "₺ miktar"
+                  }
+                />
+                <input
+                  type="text"
+                  className="input-field"
+                  value={discountReason}
+                  onChange={(e) => setDiscountReason(e.target.value)}
+                  placeholder="Gerekçe (opsiyonel) — örn. Tanıdık indirimi"
+                />
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    className="flex-1 text-sm"
+                    onClick={() => setShowDiscount(false)}
+                  >
+                    Vazgeç
+                  </Button>
+                  <Button
+                    variant="gold"
+                    className="flex-1 text-sm"
+                    disabled={discountLoading || !discountInput}
+                    onClick={applyDiscount}
+                  >
+                    {discountLoading ? "Uygulanıyor…" : "Uygula"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {error && <div className="text-red-300 text-sm">{error}</div>}
 

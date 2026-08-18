@@ -99,6 +99,17 @@ const TicketSchema = new mongoose.Schema(
     },
     items: { type: [TicketItemSchema], default: [] },
     subtotal: { type: Number, default: 0 },
+    // Ürün bazlı indirimlerden ayrı olarak, tüm adisyona (ödeme ekranından) uygulanan
+    // tek seferlik özel indirim — "tanıdık indirimi" gibi. type null ise indirim yok.
+    manualDiscount: {
+      type: {
+        type: String,
+        enum: ["percent", "amount"],
+        default: null,
+      },
+      value: { type: Number, default: 0 },
+      reason: { type: String, default: "" },
+    },
     discountTotal: { type: Number, default: 0 },
     serviceCharge: { type: Number, default: 0 },
     grandTotal: { type: Number, default: 0 },

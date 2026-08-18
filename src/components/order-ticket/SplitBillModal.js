@@ -14,7 +14,7 @@ async function fetchJson(url, opts) {
   return data.data;
 }
 
-export default function SplitBillModal({ open, onClose, ticket, onSplitEqual, onSplitByItem }) {
+export default function SplitBillModal({ open, onClose, ticket, onSplitEqual, onSplitByItem, role }) {
   const [mode, setMode] = useState("equal");
   const [parts, setParts] = useState(2);
   const [shares, setShares] = useState(null);
@@ -224,6 +224,7 @@ export default function SplitBillModal({ open, onClose, ticket, onSplitEqual, on
         ticket={payingTicket}
         onPay={paySplitTicket}
         onFullyPaid={() => setPayingTicket(null)}
+        role={role}
       />
     </>
   );

@@ -217,6 +217,7 @@ export default function SimpleOrderScreen({ ticketId, backHref }) {
         ticket={paymentTicket}
         onPay={handlePay}
         onFullyPaid={handleFullyPaid}
+        role={user?.role}
       />
 
       <HistoryModal
