@@ -61,6 +61,12 @@ function ReportsContent() {
     [viewDate]
   );
 
+  const { data: productReport, refresh: refreshProductReport } = usePolling(
+    () => fetchJson(`/api/reports/products${viewDate ? `?date=${viewDate}` : ""}`),
+    15000,
+    [viewDate]
+  );
+
   async function loadDays() {
     const d = await fetchJson("/api/reports/days?limit=90");
     setDays(d.days);
@@ -159,6 +165,43 @@ function ReportsContent() {
         </div>
       </div>
 
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-white font-bold text-lg">
+            {viewDate ? `${displayDate(viewDate)} — Ürün Satışları` : "Bugünün Ürün Satışları"}
+          </h2>
+          {productReport && (
+            <span className="text-white/40 text-xs">
+              {productReport.totalQuantity} adet · {formatCurrency(productReport.totalRevenue)}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {(productReport?.rows || []).map((row) => (
+            <div
+              key={`${row.productId}::${row.variant || ""}`}
+              className="flex items-center justify-between rounded-xl2 bg-ink-soft border border-ink-border px-4 py-2"
+            >
+              <div className="min-w-0">
+                <div className="text-white text-sm font-semibold truncate">{row.name}</div>
+                {row.variant && (
+                  <div className="text-white/40 text-xs">{row.variant}</div>
+                )}
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-white/50 text-xs">{row.quantity} adet</span>
+                <span className="text-gold font-bold text-sm">{formatCurrency(row.revenue)}</span>
+              </div>
+            </div>
+          ))}
+          {productReport && productReport.rows.length === 0 && (
+            <p className="text-white/30 text-center py-8 text-sm">
+              {viewDate ? "Bu günde satış kaydı yok." : "Bugün henüz satış yok."}
+            </p>
+          )}
+        </div>
+      </div>
+
       {monthly.length > 0 && (
         <div className="card p-6">
           <h2 className="text-white font-bold text-lg mb-4">Aylık Karşılaştırma</h2>
@@ -229,6 +272,7 @@ function ReportsContent() {
         onDeleted={() => {
           setDeleteTarget(null);
           refreshLedger();
+          refreshProductReport();
           loadDays();
         }}
       />
@@ -241,6 +285,7 @@ function ReportsContent() {
           setViewDate(null);
           refreshToday();
           refreshLedger();
+          refreshProductReport();
           loadDays();
         }}
       />

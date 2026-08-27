@@ -150,12 +150,8 @@ export default function TableOrderPage() {
     router.push(`/masalar/${targetTableId}`);
   }
 
-  async function handleSplitEqual(parts) {
-    return fetchJson(`/api/tickets/${ticket._id}/split`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "equal", parts }),
-    });
+  async function handlePayShare(payload) {
+    return handlePay(ticket, payload);
   }
 
   async function handleResetTable() {
@@ -314,7 +310,7 @@ export default function TableOrderPage() {
         open={showSplit}
         onClose={() => setShowSplit(false)}
         ticket={ticket}
-        onSplitEqual={handleSplitEqual}
+        onPayShare={handlePayShare}
         onSplitByItem={handleSplitByItem}
         role={user?.role}
       />
