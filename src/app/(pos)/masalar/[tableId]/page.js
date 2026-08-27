@@ -69,6 +69,10 @@ export default function TableOrderPage() {
 
   const table = data?.table;
   const ticket = data?.ticket;
+  // Hesap "Ürüne Göre Böl" ile bölündüyse aynı masaya bağlı, henüz ödenmemiş başka
+  // açık adisyonlar da olabilir. Bunlar veritabanından canlı okunur — modal kapansa,
+  // sayfadan çıkıp tekrar girilse bile kaybolmaz.
+  const otherTickets = data?.otherTickets || [];
 
   // Masa boşaldıysa (ödeme tamamlandı, adisyon kapandı) ya da hiç açık adisyon yoksa
   // bu ekranda sonsuza kadar beklemek yerine kat planına geri dön. Ödeme modali
@@ -114,7 +118,10 @@ export default function TableOrderPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ticketId: targetTicket._id, ...payload }),
     });
-    if (targetTicket._id === ticket?._id) refresh();
+    // Hangi adisyon ödenirse ödensin (asıl ya da bölünmüş) masa/adisyon verisini
+    // tazeleriz — masanın "asıl" adisyonu artık başka bir açık adisyona kaymış
+    // olabilir (bkz. /api/payments), bunu her zaman güncel görmemiz gerekir.
+    refresh();
     return result;
   }
 
@@ -123,13 +130,17 @@ export default function TableOrderPage() {
     setShowPayment(true);
   }
 
+  function openPaymentFor(t) {
+    setPaymentTicket(t);
+    setShowPayment(true);
+  }
+
   function handleFullyPaid() {
     setShowPayment(false);
-    if (paymentTicket?._id === ticket?._id) {
-      router.push("/masalar");
-    } else {
-      refresh();
-    }
+    // Masada hâlâ başka açık adisyon kalıp kalmadığına göre sayfanın kendisi zaten
+    // kat planına dönüp dönmeyeceğine karar veriyor (yukarıdaki useEffect, data.ticket
+    // null olduğunda yönlendirir) — burada sadece taze veriyi çekmemiz yeterli.
+    refresh();
   }
 
   async function handleMerge(targetTableId) {
@@ -155,11 +166,22 @@ export default function TableOrderPage() {
   }
 
   async function handleResetTable() {
-    const activeCount = ticket.items.filter((i) => !i.isVoided).length;
-    const remaining = Math.max(ticket.grandTotal - ticket.paidTotal, 0);
+    // Masaya bağlı hesap bölündüyse birden fazla açık adisyon olabilir — uyarı mesajı
+    // hepsinin toplamını göstermeli, aksi halde staff sadece "asıl" adisyonu görüp
+    // bölünmüş diğer adisyonların da iptal edileceğinden habersiz olur.
+    const allOpenTickets = [ticket, ...otherTickets].filter(Boolean);
+    const activeCount = allOpenTickets.reduce(
+      (sum, t) => sum + t.items.filter((i) => !i.isVoided).length,
+      0
+    );
+    const remaining = allOpenTickets.reduce(
+      (sum, t) => sum + Math.max(t.grandTotal - t.paidTotal, 0),
+      0
+    );
+    const multiSuffix = allOpenTickets.length > 1 ? ` (${allOpenTickets.length} adisyon)` : "";
     const warn =
       activeCount > 0 || remaining > 0
-        ? `Bu masada ${activeCount} ürün ve ${formatCurrency(remaining)} ödenmemiş tutar var. Yine de masayı boşaltmak istediğinize emin misiniz?`
+        ? `Bu masada ${activeCount} ürün ve ${formatCurrency(remaining)} ödenmemiş tutar var${multiSuffix}. Yine de masayı boşaltmak istediğinize emin misiniz?`
         : "Masa boşaltılsın mı?";
     if (!window.confirm(warn)) return;
     await fetchJson(`/api/tables/${tableId}/reset`, { method: "POST" });
@@ -262,6 +284,46 @@ export default function TableOrderPage() {
                 Ödeme Al
               </Button>
             </div>
+
+            {otherTickets.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-ink-border flex flex-col gap-2">
+                <div className="text-white/40 text-xs font-semibold uppercase tracking-wide">
+                  Diğer Açık Adisyonlar
+                </div>
+                {otherTickets.map((t) => {
+                  const remaining = Math.max(
+                    Math.round((t.grandTotal - t.paidTotal) * 100) / 100,
+                    0
+                  );
+                  const activeItems = t.items.filter((i) => !i.isVoided);
+                  return (
+                    <div
+                      key={t._id}
+                      className="rounded-xl2 border border-gold/30 bg-gold/5 px-3 py-2.5 flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-white text-sm font-semibold">
+                          Adisyon #{t.ticketNo}
+                        </div>
+                        <div className="text-white/40 text-xs truncate">
+                          {activeItems.map((i) => `${i.quantity}× ${i.nameSnapshot}`).join(", ")}
+                        </div>
+                        <div className="text-gold font-bold text-sm mt-0.5">
+                          Kalan: {formatCurrency(remaining)}
+                        </div>
+                      </div>
+                      <Button
+                        variant="gold"
+                        className="text-xs px-4 shrink-0"
+                        onClick={() => openPaymentFor(t)}
+                      >
+                        Öde
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       ) : (
@@ -312,7 +374,6 @@ export default function TableOrderPage() {
         ticket={ticket}
         onPayShare={handlePayShare}
         onSplitByItem={handleSplitByItem}
-        role={user?.role}
       />
 
       <HistoryModal

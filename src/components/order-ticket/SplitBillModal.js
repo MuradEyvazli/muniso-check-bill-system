@@ -4,16 +4,8 @@ import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
-import PaymentModal from "@/components/order-ticket/PaymentModal";
 import { formatCurrency } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
-
-async function fetchJson(url, opts) {
-  const res = await fetch(url, opts);
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error);
-  return data.data;
-}
 
 function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -25,7 +17,6 @@ export default function SplitBillModal({
   ticket,
   onSplitByItem,
   onPayShare,
-  role,
 }) {
   const [mode, setMode] = useState("amount"); // "amount" | "item"
 
@@ -46,8 +37,10 @@ export default function SplitBillModal({
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [splitTickets, setSplitTickets] = useState([]);
-  const [payingTicket, setPayingTicket] = useState(null);
+  // Bu oturumda oluşturulan adisyonlar — sadece bilgilendirme amaçlı. Gerçek durumları
+  // (açık/ödendi) masa ekranındaki "Diğer Açık Adisyonlar" bölümünden takip edilir,
+  // o bölüm veritabanından canlı okur ve bu modal kapansa/sayfa yenilense bile kaybolmaz.
+  const [justSplit, setJustSplit] = useState([]);
 
   const remaining = ticket ? Math.max(round2(ticket.grandTotal - ticket.paidTotal), 0) : 0;
   const customSum = round2(customAmounts.reduce((s, v) => s + (Number(v) || 0), 0));
@@ -67,7 +60,7 @@ export default function SplitBillModal({
     setRowError("");
     setSelectedItemIds([]);
     setError("");
-    setSplitTickets([]);
+    setJustSplit([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ticket?._id]);
 
@@ -149,7 +142,7 @@ export default function SplitBillModal({
     setError("");
     try {
       const result = await onSplitByItem(selectedItemIds);
-      setSplitTickets((prev) => [...prev, ...(result.newTickets || [])]);
+      setJustSplit((prev) => [...prev, ...(result.newTickets || [])]);
       setSelectedItemIds([]);
     } catch (err) {
       setError(err.message);
@@ -158,28 +151,13 @@ export default function SplitBillModal({
     }
   }
 
-  async function paySplitTicket(payload) {
-    const result = await fetchJson("/api/payments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticketId: payingTicket._id, ...payload }),
-    });
-    setSplitTickets((prev) =>
-      prev.map((t) => (t._id === payingTicket._id ? result.ticket : t))
-    );
-    return result;
-  }
-
   function handleClose() {
     onClose();
   }
 
   const activeItems = (ticket?.items || []).filter((i) => !i.isVoided);
-  const openSplitTickets = splitTickets.filter((t) => t.status === "acik");
-  const closedSplitTickets = splitTickets.filter((t) => t.status !== "acik");
 
   return (
-    <>
       <Modal open={open} onClose={handleClose} title="Hesap Böl" size="md">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-2 bg-ink-soft rounded-xl2 p-1">
@@ -417,55 +395,21 @@ export default function SplitBillModal({
                 {loading ? "İşleniyor…" : "Yeni Adisyona Böl"}
               </Button>
 
-              {splitTickets.length > 0 && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-ink-border">
-                  <div className="text-white/60 text-xs font-semibold uppercase">
-                    Bölünen Hesaplar
+              {justSplit.length > 0 && (
+                <div className="rounded-xl2 bg-emerald-500/10 border border-emerald-400/30 px-3 py-2.5 flex flex-col gap-1">
+                  <div className="text-emerald-300 text-sm font-semibold">
+                    {justSplit.map((t) => `Adisyon #${t.ticketNo}`).join(", ")} oluşturuldu.
                   </div>
-                  {openSplitTickets.map((t) => (
-                    <div
-                      key={t._id}
-                      className="flex items-center justify-between rounded-xl2 border border-gold/30 bg-gold/5 px-3 py-2"
-                    >
-                      <div>
-                        <div className="text-white text-sm font-semibold">
-                          Adisyon #{t.ticketNo}
-                        </div>
-                        <div className="text-white/40 text-xs">
-                          {t.items.length} ürün · {formatCurrency(t.grandTotal)}
-                        </div>
-                      </div>
-                      <Button variant="gold" className="text-xs px-4" onClick={() => setPayingTicket(t)}>
-                        Öde
-                      </Button>
-                    </div>
-                  ))}
-                  {closedSplitTickets.map((t) => (
-                    <div
-                      key={t._id}
-                      className="flex items-center justify-between rounded-xl2 border border-emerald-500/30 bg-emerald-500/5 px-3 py-2"
-                    >
-                      <div className="text-white text-sm font-semibold">
-                        Adisyon #{t.ticketNo}
-                      </div>
-                      <Badge tone="success">Ödendi</Badge>
-                    </div>
-                  ))}
+                  <p className="text-white/50 text-xs">
+                    Bu pencereyi kapatsanız veya masadan çıkıp tekrar girseniz bile
+                    kaybolmaz — masa ekranında &ldquo;Diğer Açık Adisyonlar&rdquo; bölümünde
+                    görünür ve istediğiniz an oradan ödenebilir.
+                  </p>
                 </div>
               )}
             </div>
           )}
         </div>
       </Modal>
-
-      <PaymentModal
-        open={!!payingTicket}
-        onClose={() => setPayingTicket(null)}
-        ticket={payingTicket}
-        onPay={paySplitTicket}
-        onFullyPaid={() => setPayingTicket(null)}
-        role={role}
-      />
-    </>
   );
 }

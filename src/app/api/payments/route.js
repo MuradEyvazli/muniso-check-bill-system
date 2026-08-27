@@ -105,15 +105,44 @@ export const POST = withApi("payments:process", async (req, ctx, session) => {
     ticket.save(),
   ];
 
+  // Hesap "Ürüne Göre Böl" ile bölündüyse aynı masaya bağlı birden fazla açık adisyon
+  // olabilir. Masa durumunu SADECE, o an masanın "asıl" (currentTicketId) adisyonu bu
+  // ise değiştiriyoruz — bölünmüş bir alt adisyonun ödenmesi, hâlâ açık olan asıl
+  // adisyonu masadan koparıp masayı yanlışlıkla "boş" göstermemeli.
   if (ticket.tableId) {
-    writes.push(
-      Table.findByIdAndUpdate(
-        ticket.tableId,
-        fullyPaid
-          ? { status: TABLE_STATUS.BOS, currentTicketId: null, mergedGroupId: null }
-          : { status: TABLE_STATUS.ODEME_BEKLIYOR }
-      )
-    );
+    const table = await Table.findById(ticket.tableId).select("currentTicketId").lean();
+    const isPrimaryTicket = table && String(table.currentTicketId) === String(ticket._id);
+
+    if (fullyPaid) {
+      const otherOpenTicket = await Ticket.findOne({
+        tableId: ticket.tableId,
+        status: TICKET_STATUS.ACIK,
+        _id: { $ne: ticket._id },
+      })
+        .select("_id")
+        .lean();
+
+      if (otherOpenTicket) {
+        if (isPrimaryTicket) {
+          // Masa hâlâ dolu — sadece ekranın düştüğü "asıl" adisyonu kalan açık
+          // adisyona kaydırıyoruz ki masa erişilebilir kalsın.
+          writes.push(
+            Table.findByIdAndUpdate(ticket.tableId, { currentTicketId: otherOpenTicket._id })
+          );
+        }
+        // isPrimaryTicket değilse (bölünmüş bir adisyon ödendi) masaya hiç dokunulmaz.
+      } else {
+        writes.push(
+          Table.findByIdAndUpdate(ticket.tableId, {
+            status: TABLE_STATUS.BOS,
+            currentTicketId: null,
+            mergedGroupId: null,
+          })
+        );
+      }
+    } else if (isPrimaryTicket) {
+      writes.push(Table.findByIdAndUpdate(ticket.tableId, { status: TABLE_STATUS.ODEME_BEKLIYOR }));
+    }
   }
 
   const [payment] = await Promise.all(writes);

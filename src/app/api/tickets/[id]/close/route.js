@@ -23,12 +23,32 @@ export const POST = withApi("tickets:close", async (req, { params }, session) =>
   ticket.history.push({ action: "adisyon_kapatildi", actorId: session.sub });
   await ticket.save();
 
+  // Hesap "Ürüne Göre Böl" ile bölündüyse aynı masaya bağlı başka açık adisyon(lar)
+  // olabilir — masayı sadece gerçekten hiç açık adisyon kalmadıysa boşaltırız
+  // (bkz. /api/payments'daki aynı mantık).
   if (ticket.tableId) {
-    await Table.findByIdAndUpdate(ticket.tableId, {
-      status: TABLE_STATUS.BOS,
-      currentTicketId: null,
-      mergedGroupId: null,
-    });
+    const table = await Table.findById(ticket.tableId).select("currentTicketId").lean();
+    const isPrimaryTicket = table && String(table.currentTicketId) === String(ticket._id);
+
+    const otherOpenTicket = await Ticket.findOne({
+      tableId: ticket.tableId,
+      status: TICKET_STATUS.ACIK,
+      _id: { $ne: ticket._id },
+    })
+      .select("_id")
+      .lean();
+
+    if (otherOpenTicket) {
+      if (isPrimaryTicket) {
+        await Table.findByIdAndUpdate(ticket.tableId, { currentTicketId: otherOpenTicket._id });
+      }
+    } else {
+      await Table.findByIdAndUpdate(ticket.tableId, {
+        status: TABLE_STATUS.BOS,
+        currentTicketId: null,
+        mergedGroupId: null,
+      });
+    }
   }
 
   return jsonOk({ ticket });

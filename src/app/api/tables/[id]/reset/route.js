@@ -16,18 +16,23 @@ export const POST = withApi("tables:reset", async (req, { params }, session) => 
     throw err;
   }
 
-  if (table.currentTicketId) {
-    const ticket = await Ticket.findById(table.currentTicketId);
-    if (ticket && ticket.status === TICKET_STATUS.ACIK) {
-      ticket.status = TICKET_STATUS.IPTAL;
-      ticket.closedAt = new Date();
-      ticket.history.push({
-        action: "masa_sifirlandi",
-        actorId: session.sub,
-        detail: "Masa manuel olarak boşaltıldı",
-      });
-      await ticket.save();
-    }
+  // Hesap "Ürüne Göre Böl" ile bölünmüşse aynı masaya bağlı birden fazla açık adisyon
+  // olabilir — sadece "asıl" (currentTicketId) adisyonu değil, masaya bağlı TÜM açık
+  // adisyonları iptal ederiz. Aksi halde bölünüp ödenmemiş bir alt adisyon, masa
+  // boşaltıldıktan sonra da sistemde sonsuza kadar "açık" takılı kalırdı.
+  const openTickets = await Ticket.find({
+    tableId: params.id,
+    status: TICKET_STATUS.ACIK,
+  });
+  for (const ticket of openTickets) {
+    ticket.status = TICKET_STATUS.IPTAL;
+    ticket.closedAt = new Date();
+    ticket.history.push({
+      action: "masa_sifirlandi",
+      actorId: session.sub,
+      detail: "Masa manuel olarak boşaltıldı",
+    });
+    await ticket.save();
   }
 
   table.status = TABLE_STATUS.BOS;
