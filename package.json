@@ -17,6 +17,7 @@
     "bcryptjs": "^2.4.3",
     "dejavu-fonts-ttf": "^2.37.3",
     "dotenv": "^16.4.5",
+    "framer-motion": "^11.3.19",
     "jose": "^5.6.3",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.400.0",

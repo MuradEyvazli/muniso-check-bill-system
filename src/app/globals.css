@@ -82,3 +82,73 @@ input, textarea {
     font-family: var(--font-display), Georgia, serif;
   }
 }
+
+/* ---- Login: cinematic duotone atmosfer ---- */
+@keyframes loginBlobA {
+  0%, 100% { transform: translate(-8%, -6%) scale(1); }
+  50% { transform: translate(9%, 6%) scale(1.18); }
+}
+@keyframes loginBlobB {
+  0%, 100% { transform: translate(8%, 8%) scale(1); }
+  50% { transform: translate(-9%, -7%) scale(1.12); }
+}
+@keyframes loginGrain {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-1.5%, 1.5%); }
+}
+
+.login-cinematic {
+  background:
+    radial-gradient(1100px 800px at 12% 15%, rgba(123, 30, 43, 0.55), transparent 60%),
+    radial-gradient(900px 700px at 88% 85%, rgba(201, 162, 39, 0.16), transparent 55%),
+    #0e0b0c;
+}
+
+.login-blob {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  will-change: transform;
+}
+.login-blob-a {
+  background: radial-gradient(480px 480px at 32% 32%, rgba(123, 30, 43, 0.5), transparent 70%);
+  filter: blur(70px);
+  mix-blend-mode: screen;
+  animation: loginBlobA 24s ease-in-out infinite;
+}
+.login-blob-b {
+  background: radial-gradient(560px 560px at 68% 68%, rgba(201, 162, 39, 0.28), transparent 70%);
+  filter: blur(90px);
+  mix-blend-mode: screen;
+  animation: loginBlobB 28s ease-in-out infinite;
+}
+.login-blob-mobile {
+  background:
+    radial-gradient(360px 360px at 18% 12%, rgba(123, 30, 43, 0.55), transparent 65%),
+    radial-gradient(360px 360px at 88% 92%, rgba(201, 162, 39, 0.22), transparent 60%);
+  filter: blur(55px);
+  animation: loginBlobA 20s ease-in-out infinite;
+}
+
+.login-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+  animation: loginGrain 9s steps(2) infinite;
+}
+
+.login-spotlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: background 0.25s ease;
+  background: radial-gradient(
+    600px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(201, 162, 39, 0.14),
+    transparent 60%
+  );
+}
