@@ -15,8 +15,45 @@ export default function ProductGrid({ categories, products, orderType, onSelect 
     [products, catId]
   );
 
+  // Kategoriden bağımsız olarak rozetli (Şefin Spesiyali / Yeni) ürünleri üstte
+  // dönen bir şeritte öne çıkarıyoruz — garson kategoriye girmeden de görsün.
+  const featured = useMemo(
+    () =>
+      products
+        .filter((p) => p.badge && p.stockStatus !== "kapali")
+        .slice(0, 10),
+    [products]
+  );
+
   return (
     <div className="flex flex-col h-full min-h-0">
+      {featured.length > 0 && (
+        <div className="flex gap-2.5 overflow-x-auto pb-3 mb-1 -mx-1 px-1">
+          {featured.map((product) => {
+            const price = product.prices?.[priceField] ?? product.prices?.salon ?? 0;
+            return (
+              <button
+                key={product._id}
+                onClick={() => onSelect(product)}
+                className="tap-target shrink-0 relative flex items-center gap-2.5 rounded-xl2 border border-gold/30 bg-gradient-to-r from-burgundy/40 via-burgundy-dark/30 to-transparent px-4 pr-5 overflow-hidden hover:border-gold/60 transition-colors"
+              >
+                <span className="absolute inset-0 bg-gradient-to-r from-gold/10 to-transparent pointer-events-none" />
+                <span className="badge bg-gold text-ink text-[9px] font-bold relative z-10 shrink-0">
+                  {product.badge}
+                </span>
+                <span className="text-white text-xs font-semibold relative z-10 whitespace-nowrap">
+                  {product.name}
+                </span>
+                <span className="text-gold text-xs font-bold relative z-10 whitespace-nowrap">
+                  {CURRENCY_SYMBOL}
+                  {price.toFixed(0)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex gap-2 overflow-x-auto pb-3 mb-2 -mx-1 px-1">
         {categories.map((cat) => {
           const catActive = catId === cat._id;

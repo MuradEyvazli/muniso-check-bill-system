@@ -47,6 +47,12 @@ export default function Topbar({ user, title }) {
   });
   const timeStr = now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 
+  // Saate göre değişen kişisel karşılama — sadece isim değil, günün o anına uygun
+  // bir selamlama ile üst barı biraz daha "canlı" hissettiriyor.
+  const hour = now.getHours();
+  const greeting = hour < 6 ? "İyi geceler" : hour < 12 ? "Günaydın" : hour < 18 ? "İyi günler" : "İyi akşamlar";
+  const firstName = (user?.name || "").trim().split(/\s+/)[0];
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-4 px-5 py-3 bg-ink/80 backdrop-blur border-b border-ink-border relative">
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/25 to-transparent" />
@@ -73,7 +79,10 @@ export default function Topbar({ user, title }) {
           <Badge tone="success">Vardiya Açık</Badge>
         )}
         <div className="text-right hidden sm:block">
-          <div className="text-white text-sm font-semibold leading-none">{user?.name}</div>
+          <div className="text-gold/70 text-[10px] font-semibold uppercase tracking-[0.14em] leading-none">
+            {greeting}{firstName ? `, ${firstName}` : ""}
+          </div>
+          <div className="text-white text-sm font-semibold leading-none mt-1.5">{user?.name}</div>
           <div className="text-white/40 text-xs leading-none mt-1">
             {ROLE_LABELS[user?.role] || user?.role}
           </div>

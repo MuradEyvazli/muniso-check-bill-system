@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { Wallet, Receipt, CreditCard, Clock } from "lucide-react";
 import { usePolling } from "@/hooks/usePolling";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import Modal from "@/components/ui/Modal";
@@ -8,6 +9,8 @@ import Button from "@/components/ui/Button";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import PageHeader from "@/components/ui/PageHeader";
+import RevenueTrendChart from "@/components/charts/RevenueTrendChart";
+import PaymentMethodDonut from "@/components/charts/PaymentMethodDonut";
 import { formatCurrency } from "@/lib/format";
 
 async function fetchJson(url, opts) {
@@ -24,6 +27,19 @@ function displayDate(dateStr) {
     year: "numeric",
     weekday: "long",
   });
+}
+
+// Bir önceki güne göre yüzde değişimi hesaplar — baseline 0 veya yoksa null
+// döner (rozet o zaman hiç gösterilmez, "%∞" gibi anlamsız bir şey görünmesin).
+function percentDelta(current, previous) {
+  if (previous === null || previous === undefined || previous === 0) return null;
+  return ((current - previous) / previous) * 100;
+}
+
+function yesterdayStr(dateStr) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 export default function RaporlarPage() {
@@ -105,8 +121,36 @@ function ReportsContent() {
       .sort((a, b) => (a.key < b.key ? 1 : -1));
   }, [days]);
 
+  // Grafik için son 14 günü kronolojik sırayla (soldan sağa eskiden yeniye) diziyoruz —
+  // `days` API'den en yeniden en eskiye sıralı geliyor.
+  const dailyChartData = useMemo(() => {
+    return [...days]
+      .slice(0, 14)
+      .reverse()
+      .map((d) => ({
+        label: new Date(`${d.date}T12:00:00`).toLocaleDateString("tr-TR", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        total: d.totalRevenue,
+      }));
+  }, [days]);
+
+  // "Bugün" kartındaki rozetler için dünün rakamlarını `days` listesinden buluyoruz —
+  // ayrı bir API isteği gerekmiyor, zaten geçmiş günler için elimizde.
+  const yesterday = today ? days.find((d) => d.date === yesterdayStr(today.date)) : null;
+
   const entries = ledger?.entries || [];
   const viewTotal = ledger?.totalRevenue ?? 0;
+
+  const paymentMethodData = useMemo(() => {
+    const map = new Map();
+    for (const e of entries) {
+      const key = e.methodLabel || e.method;
+      map.set(key, (map.get(key) || 0) + e.amount);
+    }
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [entries]);
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
@@ -121,13 +165,36 @@ function ReportsContent() {
         </div>
         {today ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <MiniStat label="Toplam Ciro" numericValue={today.totalRevenue} format={formatCurrency} highlight />
-            <MiniStat label="Kapanan Adisyon" numericValue={today.ticketCount} />
-            <MiniStat label="Ödeme Sayısı" numericValue={today.paymentCount} />
+            <MiniStat
+              label="Toplam Ciro"
+              numericValue={today.totalRevenue}
+              format={formatCurrency}
+              highlight
+              icon={Wallet}
+              iconColor="bg-gold/15 text-gold"
+              delta={percentDelta(today.totalRevenue, yesterday?.totalRevenue)}
+            />
+            <MiniStat
+              label="Kapanan Adisyon"
+              numericValue={today.ticketCount}
+              icon={Receipt}
+              iconColor="bg-burgundy/20 text-burgundy-light"
+              delta={percentDelta(today.ticketCount, yesterday?.orderCount)}
+            />
+            <MiniStat
+              label="Ödeme Sayısı"
+              numericValue={today.paymentCount}
+              icon={CreditCard}
+              iconColor="bg-blue-500/15 text-blue-400"
+              delta={percentDelta(today.paymentCount, yesterday?.paymentCount)}
+            />
             <MiniStat
               label="Ort. Oturma Süresi"
               numericValue={today.avgSittingMinutes ?? 0}
               format={(v) => (today.avgSittingMinutes !== null ? `${Math.round(v)} dk` : "—")}
+              icon={Clock}
+              iconColor="bg-emerald-500/15 text-emerald-400"
+              delta={percentDelta(today.avgSittingMinutes, yesterday?.avgSittingMinutes)}
             />
             {Object.entries(today.totalsByMethodLabeled || {}).map(([label, amount]) => (
               <MiniStat key={label} label={label} numericValue={amount} format={formatCurrency} />
@@ -140,6 +207,21 @@ function ReportsContent() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-6">
+        <div className="card p-6">
+          <h2 className="text-white font-bold text-lg mb-1">Ciro Trendi</h2>
+          <p className="text-white/35 text-xs mb-2">Son 14 gün</p>
+          <RevenueTrendChart data={dailyChartData} />
+        </div>
+        <div className="card p-6">
+          <h2 className="text-white font-bold text-lg mb-1">Ödeme Yöntemi Dağılımı</h2>
+          <p className="text-white/35 text-xs mb-2">
+            {viewDate ? displayDate(viewDate) : "Bugün"}
+          </p>
+          <PaymentMethodDonut data={paymentMethodData} />
+        </div>
       </div>
 
       <div className="card p-6">
@@ -306,9 +388,31 @@ function ReportsContent() {
   );
 }
 
-function MiniStat({ label, value, numericValue, format, highlight }) {
+function MiniStat({ label, value, numericValue, format, highlight, icon: Icon, iconColor, delta }) {
+  const hasDelta = typeof delta === "number" && Number.isFinite(delta);
+  const positive = hasDelta && delta >= 0;
+
   return (
-    <div className="rounded-xl2 bg-ink-soft border border-ink-border px-4 py-3 text-center">
+    <div className="relative rounded-xl2 bg-ink-soft border border-ink-border px-4 py-3">
+      <div className="flex items-center justify-between mb-2">
+        {Icon ? (
+          <span className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 ${iconColor || "bg-white/10 text-white/60"}`}>
+            <Icon size={14} strokeWidth={2.25} />
+          </span>
+        ) : (
+          <span />
+        )}
+        {hasDelta && (
+          <span
+            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+              positive ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+            }`}
+          >
+            {positive ? "+" : ""}
+            {Math.round(delta)}%
+          </span>
+        )}
+      </div>
       <div className={`font-black text-lg ${highlight ? "text-gold" : "text-white"}`}>
         {numericValue !== undefined ? <AnimatedNumber value={numericValue} format={format} /> : value}
       </div>
