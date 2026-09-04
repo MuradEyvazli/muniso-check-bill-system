@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePolling } from "@/hooks/usePolling";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import PageHeader from "@/components/ui/PageHeader";
 import { CURRENCY_SYMBOL } from "@/lib/constants";
 
 async function fetchJson(url, opts) {
@@ -43,6 +44,8 @@ export default function KasaPage() {
 
   return (
     <div className="flex flex-col gap-5 max-w-3xl">
+      <PageHeader eyebrow="Genel" title="Kasa" />
+
       {!shift && !lastReport && (
         <div className="card p-6 text-center flex flex-col items-center gap-3">
           <p className="text-white/60">Açık vardiya yok. Satış ve ödeme almak için vardiyayı başlatın.</p>

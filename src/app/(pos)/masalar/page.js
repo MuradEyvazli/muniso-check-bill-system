@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { usePolling } from "@/hooks/usePolling";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import TableCard from "@/components/floor-plan/TableCard";
 import AddTableModal from "@/components/floor-plan/AddTableModal";
+import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import { formatCurrency } from "@/lib/format";
 
 async function fetchJson(url, opts) {
@@ -92,10 +94,16 @@ export default function MasalarPage() {
           </div>
           <div className="flex divide-x divide-white/10 border-t border-white/10 pt-6 sm:border-t-0 sm:pt-0 sm:pl-8 sm:border-l">
             <StatColumn label="Dolu Masa" value={`${doluCount}/${tables.length}`} />
-            <StatColumn label="Açık Tutar" value={formatCurrency(acikTutar)} highlight />
+            <StatColumn
+              label="Açık Tutar"
+              value={<AnimatedNumber value={acikTutar} format={formatCurrency} />}
+              highlight
+            />
             <StatColumn
               label="Bugünkü Ciro"
-              value={todayRevenue === null ? "…" : formatCurrency(todayRevenue)}
+              value={
+                todayRevenue === null ? "…" : <AnimatedNumber value={todayRevenue} format={formatCurrency} />
+              }
               highlight
             />
           </div>
@@ -110,13 +118,18 @@ export default function MasalarPage() {
               <button
                 key={hall._id}
                 onClick={() => setActiveHall(hall._id)}
-                className={`tap-target pb-1 text-sm font-semibold tracking-wide border-b-2 transition-colors ${
-                  active
-                    ? "text-white border-gold"
-                    : "text-white/40 border-transparent hover:text-white/70"
+                className={`tap-target relative pb-1 text-sm font-semibold tracking-wide transition-colors ${
+                  active ? "text-white" : "text-white/40 hover:text-white/70"
                 }`}
               >
                 {hall.name}
+                {active && (
+                  <motion.div
+                    layoutId="masalar-hall-tab"
+                    className="absolute left-0 right-0 -bottom-[1px] h-0.5 bg-gold"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  />
+                )}
               </button>
             );
           })}

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
+import PageHeader from "@/components/ui/PageHeader";
 import { PREP_STATION_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 
@@ -43,20 +45,30 @@ export default function MenuYonetimiPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      <PageHeader eyebrow="Yönetim" title="Menü Yönetimi" />
+
       <div className="flex gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`tap-target rounded-xl2 px-5 text-sm font-semibold border ${
-              tab === t.key
-                ? "bg-burgundy border-burgundy text-white"
-                : "bg-ink-card border-ink-border text-white/60"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`tap-target relative rounded-xl2 px-5 text-sm font-semibold border transition-colors ${
+                active ? "border-burgundy text-white" : "border-ink-border text-white/60 bg-ink-card"
+              }`}
+            >
+              {active && (
+                <motion.div
+                  layoutId="menu-tab-pill"
+                  className="absolute inset-0 rounded-xl2 bg-burgundy -z-10"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "categories" && <CategoriesTab categories={categories} reload={reload} />}

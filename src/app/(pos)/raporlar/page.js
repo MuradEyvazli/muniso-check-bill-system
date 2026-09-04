@@ -5,6 +5,9 @@ import { usePolling } from "@/hooks/usePolling";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import AnimatedNumber from "@/components/ui/AnimatedNumber";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 import { formatCurrency } from "@/lib/format";
 
 async function fetchJson(url, opts) {
@@ -107,6 +110,8 @@ function ReportsContent() {
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
+      <PageHeader eyebrow="Yönetim" title="Raporlar" />
+
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white font-bold text-lg">Bugün</h2>
@@ -116,19 +121,24 @@ function ReportsContent() {
         </div>
         {today ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <MiniStat label="Toplam Ciro" value={formatCurrency(today.totalRevenue)} highlight />
-            <MiniStat label="Kapanan Adisyon" value={today.ticketCount} />
-            <MiniStat label="Ödeme Sayısı" value={today.paymentCount} />
+            <MiniStat label="Toplam Ciro" numericValue={today.totalRevenue} format={formatCurrency} highlight />
+            <MiniStat label="Kapanan Adisyon" numericValue={today.ticketCount} />
+            <MiniStat label="Ödeme Sayısı" numericValue={today.paymentCount} />
             <MiniStat
               label="Ort. Oturma Süresi"
-              value={today.avgSittingMinutes !== null ? `${today.avgSittingMinutes} dk` : "—"}
+              numericValue={today.avgSittingMinutes ?? 0}
+              format={(v) => (today.avgSittingMinutes !== null ? `${Math.round(v)} dk` : "—")}
             />
             {Object.entries(today.totalsByMethodLabeled || {}).map(([label, amount]) => (
-              <MiniStat key={label} label={label} value={formatCurrency(amount)} />
+              <MiniStat key={label} label={label} numericValue={amount} format={formatCurrency} />
             ))}
           </div>
         ) : (
-          <p className="text-white/40 text-sm">Yükleniyor…</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonBlock key={i} className="h-16" />
+            ))}
+          </div>
         )}
       </div>
 
@@ -138,7 +148,9 @@ function ReportsContent() {
             {viewDate ? `${displayDate(viewDate)} — İşlemler` : "Bugünün İşlemleri"}
           </h2>
           <div className="flex items-center gap-3">
-            <span className="text-gold font-bold">{formatCurrency(viewTotal)}</span>
+            <span className="text-gold font-bold">
+              <AnimatedNumber value={viewTotal} format={formatCurrency} />
+            </span>
             {viewDate && (
               <Button variant="ghost" className="text-xs" onClick={() => setViewDate(null)}>
                 Bugüne Dön
@@ -172,7 +184,8 @@ function ReportsContent() {
           </h2>
           {productReport && (
             <span className="text-white/40 text-xs">
-              {productReport.totalQuantity} adet · {formatCurrency(productReport.totalRevenue)}
+              <AnimatedNumber value={productReport.totalQuantity} format={(v) => Math.round(v)} /> adet ·{" "}
+              <AnimatedNumber value={productReport.totalRevenue} format={formatCurrency} />
             </span>
           )}
         </div>
@@ -293,10 +306,12 @@ function ReportsContent() {
   );
 }
 
-function MiniStat({ label, value, highlight }) {
+function MiniStat({ label, value, numericValue, format, highlight }) {
   return (
     <div className="rounded-xl2 bg-ink-soft border border-ink-border px-4 py-3 text-center">
-      <div className={`font-black text-lg ${highlight ? "text-gold" : "text-white"}`}>{value}</div>
+      <div className={`font-black text-lg ${highlight ? "text-gold" : "text-white"}`}>
+        {numericValue !== undefined ? <AnimatedNumber value={numericValue} format={format} /> : value}
+      </div>
       <div className="text-white/35 text-[10px] uppercase tracking-wide mt-0.5">{label}</div>
     </div>
   );

@@ -40,6 +40,7 @@ function tableNumber(name) {
 export default function TableCard({ table, onClick }) {
   const style = STATUS_STYLES[table.status] || STATUS_STYLES[TABLE_STATUS.BOS];
   const occupied = table.status !== "bos";
+  const waitingPayment = table.status === "odeme_bekliyor";
 
   return (
     <button
@@ -51,6 +52,11 @@ export default function TableCard({ table, onClick }) {
         backgroundPosition: "center",
       }}
     >
+      {/* Ödeme bekleyen masalar kasiyerin gözünden kaçmasın diye yumuşak bir
+          nabız efektiyle vurgulanır — diğer durumlar sabit kalır. */}
+      {waitingPayment && (
+        <div className="absolute inset-0 rounded-xl2 border-2 border-gold/70 animate-pulseSoft pointer-events-none" />
+      )}
       <div
         className={`absolute inset-0 bg-gradient-to-t ${style.overlay} transition-opacity duration-200 group-hover:opacity-90`}
       />

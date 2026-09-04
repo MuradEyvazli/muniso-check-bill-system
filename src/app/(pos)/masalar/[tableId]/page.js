@@ -14,6 +14,7 @@ import TableActionsModal from "@/components/order-ticket/TableActionsModal";
 import SplitBillModal from "@/components/order-ticket/SplitBillModal";
 import HistoryModal from "@/components/order-ticket/HistoryModal";
 import Button from "@/components/ui/Button";
+import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/format";
 
 async function fetchJson(url, opts) {
@@ -219,7 +220,20 @@ export default function TableOrderPage() {
   // ama ödeme başarı ekranı (fiş indirme) hâlâ açıksa sayfayı "Yükleniyor" ile
   // değiştirip o ekranı ekrandan söküp atmayalım.
   if (!table || (!ticket && !showPayment)) {
-    return <div className="text-white/40 text-center py-20">Yükleniyor…</div>;
+    return (
+      <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)]">
+        <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 content-start">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <SkeletonBlock key={i} className="h-28" />
+          ))}
+        </div>
+        <div className="lg:w-96 shrink-0 flex flex-col gap-3">
+          <SkeletonBlock className="h-16" />
+          <SkeletonBlock className="h-10 w-2/3" />
+          <SkeletonBlock className="flex-1" />
+        </div>
+      </div>
+    );
   }
 
   return (
