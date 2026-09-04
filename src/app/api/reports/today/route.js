@@ -4,7 +4,7 @@ import Payment from "@/models/Payment";
 import Ticket from "@/models/Ticket";
 import { withApi, jsonOk, resolveBranchId } from "@/lib/apiUtils";
 import { PAYMENT_METHOD_LABELS } from "@/lib/constants";
-import { istanbulDayRange } from "@/lib/businessDay";
+import { istanbulDayRange, getBusinessDayCutoffHour } from "@/lib/businessDay";
 
 // Bugünün (İstanbul takvim günü) canlı ciro özeti — ana sayfa banner'ında ve raporlar
 // ekranındaki "Bugün" kartında kullanılır. Vardiya açık/kapalı olmasından
@@ -12,7 +12,8 @@ import { istanbulDayRange } from "@/lib/businessDay";
 export const GET = withApi("reports:today", async (req, ctx, session) => {
   await connectDB();
   const branchId = resolveBranchId(req, session);
-  const { date, start, end } = istanbulDayRange();
+  const cutoffHour = await getBusinessDayCutoffHour(branchId);
+  const { date, start, end } = istanbulDayRange(undefined, cutoffHour);
 
   const payments = await Payment.find({
     branchId,

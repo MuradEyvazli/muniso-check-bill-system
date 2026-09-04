@@ -27,6 +27,26 @@ export const PATCH = withApi("settings:manage", async (req, ctx, session) => {
   if ("address" in (body.branch || {})) branchUpdate.address = body.branch.address;
   if ("phone" in (body.branch || {})) branchUpdate.phone = body.branch.phone;
 
+  // Haftanın günlerine göre çalışma saatleri — Ayarlar ekranındaki yeni editörden gelir.
+  // Basit şekil doğrulaması yapıyoruz (7 gün, geçerli saat/dakika formatı).
+  if (Array.isArray(body.branch?.operatingHours)) {
+    const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    const cleaned = body.branch.operatingHours
+      .filter((h) => h && typeof h.day === "number" && h.day >= 0 && h.day <= 6)
+      .map((h) => ({
+        day: h.day,
+        isOpen: !!h.isOpen,
+        openTime: timeRe.test(h.openTime) ? h.openTime : "11:00",
+        closeTime: timeRe.test(h.closeTime) ? h.closeTime : "03:00",
+      }));
+    if (cleaned.length === 7) branchUpdate.operatingHours = cleaned;
+  }
+
+  if ("businessDayCutoffHour" in (body.branch || {})) {
+    const n = Number(body.branch.businessDayCutoffHour);
+    if (Number.isFinite(n) && n >= 0 && n <= 12) branchUpdate.businessDayCutoffHour = n;
+  }
+
   const [restaurant, branch] = await Promise.all([
     Object.keys(restaurantUpdate).length
       ? Restaurant.findByIdAndUpdate(session.restaurantId, restaurantUpdate, { new: true })

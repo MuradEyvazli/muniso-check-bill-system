@@ -403,6 +403,30 @@ function EditUserModal({ user, onClose, onSaved }) {
   );
 }
 
+const DAY_LABELS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+
+const DEFAULT_OPERATING_HOURS = Array.from({ length: 7 }, (_, day) => ({
+  day,
+  isOpen: true,
+  openTime: "11:00",
+  closeTime: "03:00",
+}));
+
+// Çalışma saatlerine bakıp "iş günü sınırı" için makul bir öneri üretir — gece yarısını
+// geçen (ör. kapanış 03:00) günlerin en geç kapanış saatine +2 saat tampon ekler.
+// Kullanıcı isterse bu öneriyi görmezden gelip kendi değerini yazabilir.
+function suggestCutoffHour(hours) {
+  let latestNightClose = 0;
+  for (const h of hours) {
+    if (!h.isOpen) continue;
+    const [openH] = (h.openTime || "11:00").split(":").map(Number);
+    const [closeH] = (h.closeTime || "03:00").split(":").map(Number);
+    if (closeH <= openH) latestNightClose = Math.max(latestNightClose, closeH);
+  }
+  if (latestNightClose === 0) return 0;
+  return Math.min(12, latestNightClose + 2);
+}
+
 function RestaurantTab() {
   const [restaurant, setRestaurant] = useState(null);
   const [branch, setBranch] = useState(null);
@@ -425,10 +449,29 @@ function RestaurantTab() {
   useEffect(() => {
     fetchJson("/api/settings").then((d) => {
       setRestaurant(d.restaurant);
-      setBranch(d.branch);
+      setBranch({
+        ...d.branch,
+        operatingHours:
+          Array.isArray(d.branch.operatingHours) && d.branch.operatingHours.length === 7
+            ? d.branch.operatingHours
+            : DEFAULT_OPERATING_HOURS,
+        businessDayCutoffHour:
+          typeof d.branch.businessDayCutoffHour === "number" ? d.branch.businessDayCutoffHour : 5,
+      });
     });
     reloadCounterInfo();
   }, [reloadCounterInfo]);
+
+  function updateHour(day, patch) {
+    setBranch((b) => ({
+      ...b,
+      operatingHours: b.operatingHours.map((h) => (h.day === day ? { ...h, ...patch } : h)),
+    }));
+  }
+
+  function applySuggestedCutoff() {
+    setBranch((b) => ({ ...b, businessDayCutoffHour: suggestCutoffHour(b.operatingHours) }));
+  }
 
   async function submit() {
     setLoading(true);
@@ -440,7 +483,13 @@ function RestaurantTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restaurant: { name: restaurant.name },
-          branch: { name: branch.name, address: branch.address, phone: branch.phone },
+          branch: {
+            name: branch.name,
+            address: branch.address,
+            phone: branch.phone,
+            operatingHours: branch.operatingHours,
+            businessDayCutoffHour: branch.businessDayCutoffHour,
+          },
         }),
       });
       setSaved(true);
@@ -456,7 +505,7 @@ function RestaurantTab() {
   }
 
   return (
-    <div className="card p-5 flex flex-col gap-3 max-w-lg">
+    <div className="card p-5 flex flex-col gap-3 max-w-2xl">
       {error && <div className="text-red-300 text-sm">{error}</div>}
       {saved && <div className="text-emerald-300 text-sm">Kaydedildi.</div>}
 
@@ -492,6 +541,78 @@ function RestaurantTab() {
           onChange={(e) => setBranch((b) => ({ ...b, phone: e.target.value }))}
         />
       </div>
+      <div className="border-t border-ink-border mt-2 pt-4">
+        <h3 className="text-white font-bold text-sm mb-1.5">Çalışma Saatleri</h3>
+        <p className="text-white/50 text-xs mb-3">
+          Gece yarısından sonra da açık kalıyorsanız (ör. 11:00 – 03:00) kapanış saatini
+          açılıştan küçük girin — sistem bunu &ldquo;ertesi güne taşan&rdquo; olarak anlar.
+        </p>
+
+        <div className="flex flex-col gap-1.5 mb-4">
+          {branch.operatingHours.map((h) => (
+            <div
+              key={h.day}
+              className={`flex items-center gap-2.5 rounded-xl2 border border-ink-border px-3 py-2 ${
+                h.isOpen ? "bg-ink-soft" : "bg-ink-soft/40 opacity-60"
+              }`}
+            >
+              <label className="flex items-center gap-2 w-[104px] shrink-0 text-sm text-white/80 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={h.isOpen}
+                  onChange={(e) => updateHour(h.day, { isOpen: e.target.checked })}
+                  className="accent-gold"
+                />
+                {DAY_LABELS[h.day]}
+              </label>
+              <input
+                type="time"
+                className="input-field !py-1.5 !text-sm flex-1"
+                value={h.openTime}
+                disabled={!h.isOpen}
+                onChange={(e) => updateHour(h.day, { openTime: e.target.value })}
+              />
+              <span className="text-white/30 text-xs">—</span>
+              <input
+                type="time"
+                className="input-field !py-1.5 !text-sm flex-1"
+                value={h.closeTime}
+                disabled={!h.isOpen}
+                onChange={(e) => updateHour(h.day, { closeTime: e.target.value })}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl2 bg-ink-soft border border-ink-border px-4 py-3 flex flex-col gap-2">
+          <div className="text-white/70 text-sm">İş Günü Sınırı (Rapor Saati)</div>
+          <p className="text-white/45 text-xs">
+            Raporlarda &ldquo;gün&rdquo; tam gece yarısında değil, burada belirlediğiniz saatte
+            başlar/biter — böylece gece yarısından sonraki satışlar hâlâ bir önceki güne sayılır.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={12}
+              className="input-field !py-1.5 !text-sm w-24"
+              value={branch.businessDayCutoffHour}
+              onChange={(e) =>
+                setBranch((b) => ({ ...b, businessDayCutoffHour: Number(e.target.value) }))
+              }
+            />
+            <span className="text-white/40 text-xs">:00 — (0 = tam gece yarısı)</span>
+            <button
+              type="button"
+              onClick={applySuggestedCutoff}
+              className="ml-auto text-gold/80 hover:text-gold text-xs font-semibold underline underline-offset-2"
+            >
+              Saatlere göre öner ({suggestCutoffHour(branch.operatingHours)}:00)
+            </button>
+          </div>
+        </div>
+      </div>
+
       <Button variant="gold" disabled={loading} onClick={submit}>
         {loading ? "Kaydediliyor…" : "Kaydet"}
       </Button>

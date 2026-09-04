@@ -2,7 +2,7 @@ import connectDB from "@/lib/db";
 import Ticket from "@/models/Ticket";
 import Payment from "@/models/Payment";
 import { withApi, jsonOk, resolveBranchId } from "@/lib/apiUtils";
-import { istanbulDayRange } from "@/lib/businessDay";
+import { istanbulDayRange, getBusinessDayCutoffHour } from "@/lib/businessDay";
 
 // Bir ürün satırının gerçek tahsil edilen tutarı — ikram (comp) ise 0, ürün bazlı
 // indirim varsa düşülmüş hali. TicketPanel.js'teki aynı mantığın sunucu tarafı eşidir.
@@ -31,7 +31,8 @@ export const GET = withApi("reports:today", async (req, ctx, session) => {
   await connectDB();
   const branchId = resolveBranchId(req, session);
   const url = new URL(req.url);
-  const { date, start, end } = istanbulDayRange(url.searchParams.get("date"));
+  const cutoffHour = await getBusinessDayCutoffHour(branchId);
+  const { date, start, end } = istanbulDayRange(url.searchParams.get("date"), cutoffHour);
 
   const payments = await Payment.find({
     branchId,

@@ -4,7 +4,7 @@ import Ticket from "@/models/Ticket";
 import Table from "@/models/Table";
 import { withApi, jsonOk, resolveBranchId } from "@/lib/apiUtils";
 import { PAYMENT_METHOD_LABELS, ORDER_TYPE_LABELS } from "@/lib/constants";
-import { istanbulDayRange } from "@/lib/businessDay";
+import { istanbulDayRange, getBusinessDayCutoffHour } from "@/lib/businessDay";
 
 // Belirli bir günün (varsayılan: bugün) tüm ödemelerini, hangi masada/siparişte,
 // saat kaçta, ne sipariş edilerek oluştuğuyla birlikte tek tek listeler.
@@ -12,7 +12,8 @@ export const GET = withApi("reports:today", async (req, ctx, session) => {
   await connectDB();
   const branchId = resolveBranchId(req, session);
   const url = new URL(req.url);
-  const { date, start, end } = istanbulDayRange(url.searchParams.get("date"));
+  const cutoffHour = await getBusinessDayCutoffHour(branchId);
+  const { date, start, end } = istanbulDayRange(url.searchParams.get("date"), cutoffHour);
 
   const payments = await Payment.find({
     branchId,
