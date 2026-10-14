@@ -23,7 +23,7 @@ module.exports = {
       isRequired: true,
       options: [
         { name: "Sossuz", priceDelta: 0 },
-        { name: "Soslu", priceDelta: -30 }, // soslu 320 ₺ (sossuz 350 ₺'ye göre)
+        { name: "Soslu", priceDelta: 30 }, // soslu 350 ₺ (sossuz 320 ₺'ye göre)
       ],
     },
     {
@@ -44,7 +44,7 @@ module.exports = {
         { name: "Pesto", priceDelta: 0 },
         { name: "Cafe de Paris", priceDelta: 0 },
         { name: "Kajun", priceDelta: 0 },
-        { name: "Çetos", priceDelta: 0 },
+        { name: "Çetos", priceDelta: 30 }, // Çetos soslu: 350 + 30 = 380 ₺
       ],
     },
   ],
@@ -186,7 +186,7 @@ module.exports = {
         {
           name: "Sporcu Menü (200 g Tavuk + 600 g Pilav)",
           description: "200 g haşlanmış tavuk göğsü, 600 g tereyağlı pilav. Soslu ya da sossuz seçilebilir.",
-          price: 350, // sossuz; soslu = 320 (bkz. "Sos Tercihi" grubu)
+          price: 320, // sossuz; soslu = 350, Çetos soslu = 380 (bkz. "Sos Tercihi" / "Sos Seçimi")
           optionGroups: ["Sos Tercihi", "Sos Seçimi"],
         },
       ],
