@@ -13,7 +13,41 @@ module.exports = {
   // Bahçe ve Üst Kat kaldırıldı: tek salon, 14 masa.
   halls: [{ name: "Salon", order: 0, tableCount: 14 }],
 
-  optionGroups: [],
+  // Birden çok üründe paylaşılan opsiyon grupları.
+  optionGroups: [
+    {
+      // Sporcu Menü: soslu/sossuz seçimi. Ürünün taban fiyatı SOSSUZ fiyatıdır;
+      // "Soslu" seçilince fiyat farkı (priceDelta) uygulanır.
+      name: "Sos Tercihi",
+      selectionType: "single",
+      isRequired: true,
+      options: [
+        { name: "Sossuz", priceDelta: 0 },
+        { name: "Soslu", priceDelta: -30 }, // soslu 320 ₺ (sossuz 350 ₺'ye göre)
+      ],
+    },
+    {
+      // Sadece "Sos Tercihi: Soslu" seçilince görünür. Sos listesini Menü Yönetimi >
+      // Opsiyon Grupları ekranından da düzenleyebilirsiniz.
+      name: "Sos Seçimi",
+      selectionType: "single",
+      isRequired: true,
+      showWhen: { groupName: "Sos Tercihi", optionName: "Soslu" },
+      options: [
+        { name: "Soya", priceDelta: 0 },
+        { name: "Köri", priceDelta: 0 },
+        { name: "Meksika", priceDelta: 0 },
+        { name: "Barbekü", priceDelta: 0 },
+        { name: "Peri Peri", priceDelta: 0 },
+        { name: "Sweet Chili", priceDelta: 0 },
+        { name: "Ranch", priceDelta: 0 },
+        { name: "Pesto", priceDelta: 0 },
+        { name: "Cafe de Paris", priceDelta: 0 },
+        { name: "Kajun", priceDelta: 0 },
+        { name: "Çetos", priceDelta: 0 },
+      ],
+    },
+  ],
 
   categories: [
     {
@@ -88,6 +122,12 @@ module.exports = {
           portion15Price: 375,
         },
         {
+          name: "Kajun Soslu Tavuk & Pilav",
+          description: "Baharatlı Kajun sos — 150 g tavuk, 350 g tereyağlı pilav üzerinde.",
+          price: 245,
+          portion15Price: 375,
+        },
+        {
           name: "Peri Peri Soslu Tavuk & Pilav",
           description: "Portekiz usulü acı-baharatlı peri peri sos — 150 g tavuk, 350 g pilav üzerinde.",
           calories: 895,
@@ -136,6 +176,18 @@ module.exports = {
           price: 275,
           portion15Price: 400,
           badge: "Şefin Spesiyali",
+        },
+      ],
+    },
+    {
+      name: "Sporcu Menüsü",
+      description: "200 g tavuk + 600 g pilav — soslu veya sossuz.",
+      products: [
+        {
+          name: "Sporcu Menü (200 g Tavuk + 600 g Pilav)",
+          description: "200 g haşlanmış tavuk göğsü, 600 g tereyağlı pilav. Soslu ya da sossuz seçilebilir.",
+          price: 350, // sossuz; soslu = 320 (bkz. "Sos Tercihi" grubu)
+          optionGroups: ["Sos Tercihi", "Sos Seçimi"],
         },
       ],
     },

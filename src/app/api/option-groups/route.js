@@ -23,6 +23,7 @@ export const POST = withApi("menu:manage", async (req, ctx, session) => {
     name: body.name,
     selectionType: body.selectionType || "single",
     isRequired: !!body.isRequired,
+    showWhen: body.showWhen || undefined,
     options: body.options,
   });
   return jsonOk({ optionGroup: group }, { status: 201 });

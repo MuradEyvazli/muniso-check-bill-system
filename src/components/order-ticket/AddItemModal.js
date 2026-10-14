@@ -32,13 +32,28 @@ export default function AddItemModal({
 
   if (!product) return null;
 
+  // Koşullu gruplar: `showWhen` doluysa sadece ilgili üst seçenek seçiliyken görünür
+  // (ör. "Sos Tercihi: Soslu" seçilince sos listesi açılır).
+  const visibleGroups = groups.filter((g) => {
+    const cond = g.showWhen;
+    if (!cond?.groupName) return true;
+    const parent = groups.find((x) => x.name === cond.groupName);
+    return !!parent && selected[parent._id] === cond.optionName;
+  });
+  const visibleIds = new Set(visibleGroups.map((g) => String(g._id)));
+  const missingRequired = visibleGroups.filter((g) => {
+    if (!g.isRequired) return false;
+    const v = selected[g._id];
+    return Array.isArray(v) ? v.length === 0 : !v;
+  });
+
   const priceField = orderType === "masa" ? "salon" : orderType === "paket" ? "paket" : "gelAl";
   const unitPrice = product.prices?.[priceField] ?? product.prices?.salon ?? 0;
   const maxQuantity =
     typeof product.stockQuantity === "number" ? Math.max(product.stockQuantity, 1) : 99;
   const optionsTotal = Object.entries(selected).reduce((sum, [groupId, val]) => {
     const group = optionGroupsById[groupId];
-    if (!group) return sum;
+    if (!group || !visibleIds.has(String(groupId))) return sum;
     const names = Array.isArray(val) ? val : val ? [val] : [];
     return (
       sum +
@@ -73,7 +88,7 @@ export default function AddItemModal({
 
   function buildSelectedOptions() {
     const result = [];
-    for (const group of groups) {
+    for (const group of visibleGroups) {
       const current = selected[group._id];
       const names = Array.isArray(current) ? current : current ? [current] : [];
       for (const name of names) {
@@ -111,7 +126,7 @@ export default function AddItemModal({
           </div>
         )}
 
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group._id}>
             <div className="text-white/60 text-xs font-semibold mb-2 uppercase tracking-wide">
               {group.name} {group.isRequired && <span className="text-gold">*</span>}
@@ -170,7 +185,13 @@ export default function AddItemModal({
           <p className="text-white/30 text-xs -mt-3">Kalan stok: {product.stockQuantity}</p>
         )}
 
-        <Button variant="gold" onClick={confirm}>
+        {missingRequired.length > 0 && (
+          <p className="text-gold/80 text-xs -mt-3">
+            Lütfen seçin: {missingRequired.map((g) => g.name).join(", ")}
+          </p>
+        )}
+
+        <Button variant="gold" onClick={confirm} disabled={missingRequired.length > 0}>
           Adisyona Ekle · {CURRENCY_SYMBOL}
           {lineTotal.toFixed(0)}
         </Button>

@@ -23,6 +23,12 @@ const OptionGroupSchema = new mongoose.Schema(
       default: "single",
     },
     isRequired: { type: Boolean, default: false },
+    // Koşullu grup: doluysa bu grup, aynı ürünün `showWhen.groupName` adlı grubunda
+    // `showWhen.optionName` seçilince görünür (ör. "Sos Tercihi: Soslu" → sos listesi).
+    showWhen: {
+      groupName: { type: String, default: "" },
+      optionName: { type: String, default: "" },
+    },
     options: { type: [OptionItemSchema], default: [] },
     isActive: { type: Boolean, default: true },
   },

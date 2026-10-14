@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node -r dotenv/config src/seed/seed.js",
-    "update-menu": "node -r dotenv/config src/seed/updateMenu.js"
+    "update-menu": "node -r dotenv/config src/seed/updateMenu.js",
+    "add-menu-items": "node -r dotenv/config src/seed/addMenuItems.js"
   },
   "dependencies": {
     "@fontsource/fraunces": "^5.0.20",
