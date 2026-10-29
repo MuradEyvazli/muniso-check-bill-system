@@ -297,6 +297,8 @@ function ReportsContent() {
         </div>
       </div>
 
+      <HourlyReport />
+
       {monthly.length > 0 && (
         <div className="card p-6">
           <h2 className="text-white font-bold text-lg mb-4">Aylık Karşılaştırma</h2>
@@ -384,6 +386,124 @@ function ReportsContent() {
           loadDays();
         }}
       />
+    </div>
+  );
+}
+
+function HourlyReport() {
+  const todayIso = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const [from, setFrom] = useState("2026-08-18");
+  const [to, setTo] = useState(todayIso);
+  const [startHour, setStartHour] = useState(11);
+  const [endHour, setEndHour] = useState(15);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const d = await fetchJson(
+        `/api/reports/hourly?from=${from}&to=${to}&startHour=${startHour}&endHour=${endHour}`
+      );
+      setData(d);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const hours = Array.from({ length: 25 }, (_, i) => i);
+  const fieldCls = "input-field !py-1.5 !text-sm";
+
+  return (
+    <div className="card p-6">
+      <h2 className="text-white font-bold text-lg mb-1">Saat Aralığı Satış Raporu</h2>
+      <p className="text-white/35 text-xs mb-4">
+        Seçilen tarih aralığında, her gün sadece belirlediğin saatler arasında ödemesi alınan
+        tabak sayısı (içecekler ayrı gösterilir).
+      </p>
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        <label className="text-white/40 text-xs">
+          Başlangıç
+          <input type="date" className={fieldCls} value={from} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className="text-white/40 text-xs">
+          Bitiş
+          <input type="date" className={fieldCls} value={to} onChange={(e) => setTo(e.target.value)} />
+        </label>
+        <label className="text-white/40 text-xs">
+          Saatten
+          <select className={fieldCls} value={startHour} onChange={(e) => setStartHour(Number(e.target.value))}>
+            {hours.slice(0, 24).map((h) => (
+              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-white/40 text-xs">
+          Saate kadar
+          <select className={fieldCls} value={endHour} onChange={(e) => setEndHour(Number(e.target.value))}>
+            {hours.slice(1).map((h) => (
+              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+            ))}
+          </select>
+        </label>
+        <Button variant="gold" className="!py-2 text-sm" disabled={loading} onClick={load}>
+          {loading ? "Hesaplanıyor…" : "Göster"}
+        </Button>
+      </div>
+
+      {error && <div className="text-red-300 text-sm mb-2">{error}</div>}
+
+      {data && (
+        <>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <MiniStat label="Toplam Tabak" value={data.totalPlates} highlight />
+            <MiniStat label="Adisyon" value={data.totalTickets} />
+            <MiniStat label="İçecek" value={data.totalDrinks} />
+          </div>
+
+          <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto mb-4">
+            {[...data.days].reverse().map((d) => (
+              <div
+                key={d.date}
+                className="flex items-center justify-between rounded-xl2 bg-ink-soft border border-ink-border px-4 py-2"
+              >
+                <span className="text-white text-sm">{displayDate(d.date)}</span>
+                <span className="flex items-center gap-4">
+                  <span className="text-white/40 text-xs">{d.ticketCount} adisyon</span>
+                  <span className={`font-bold text-sm ${d.plates ? "text-gold" : "text-white/25"}`}>
+                    {d.plates} tabak
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {data.products.length > 0 && (
+            <>
+              <div className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">
+                Ürün dağılımı (toplam)
+              </div>
+              <div className="flex flex-col gap-1">
+                {data.products.map((p) => (
+                  <div key={p.name} className="flex justify-between text-sm text-white/70 px-1">
+                    <span className="truncate">{p.name}</span>
+                    <span className="text-gold font-semibold shrink-0 ml-3">{p.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }
