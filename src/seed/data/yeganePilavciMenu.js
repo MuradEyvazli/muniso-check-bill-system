@@ -196,6 +196,14 @@ module.exports = {
         "Her porsiyon 350 g makarna + 150 g tavuk — soslu çeşitlerimiz pilav yerine makarna ile.",
       products: [
         {
+          name: "Mısırlı Ton Balığı & Makarna",
+          description: "100 g ton balığı, taze mısır ve limonlu sos — 350 g makarna üzerinde.",
+          calories: 705,
+          proteinGrams: 48,
+          price: 245,
+          portion15Price: 325,
+        },
+        {
           name: "Soya Soslu Tavuklu Makarna",
           description: "Soya sosu, sarımsak ve zencefil ile — 150 g tavuk, 350 g makarna üzerinde.",
           calories: 770,
@@ -345,6 +353,13 @@ module.exports = {
           description: "700 g makarna + 300 g çetos + cheddar kremalı tavuk.",
           calories: 1800,
           proteinGrams: 120,
+          price: 410,
+        },
+        {
+          name: "Mısırlı Ton Balığı & Makarna (1 kg)",
+          description: "700 g makarna + 200 g ton balığı, taze mısır ve limonlu sos.",
+          calories: 1500,
+          proteinGrams: 100,
           price: 410,
         },
       ],
