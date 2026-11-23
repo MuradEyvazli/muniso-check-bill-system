@@ -123,6 +123,26 @@ async function seedMenu(branchId) {
 }
 
 
+// Var olan ürünün fiyatını ve 1,5 porsiyon farkını menü verisiyle eşitler.
+async function resyncProduct(product, def) {
+  const price = def.price ?? 0;
+  product.prices = { salon: price, paket: price, gelAl: price, marketplace: price };
+  product.compareAtPrice = def.compareAtPrice || null;
+  await product.save();
+  if (def.portion15Price != null) {
+    const delta = Math.round((def.portion15Price - price) * 100) / 100;
+    const groups = await OptionGroup.find({ _id: { $in: product.optionGroupIds }, name: "Porsiyon" });
+    for (const g of groups) {
+      g.options = [
+        { name: "1 Porsiyon", priceDelta: 0 },
+        { name: "1,5 Porsiyon", priceDelta: delta },
+      ];
+      await g.save();
+    }
+  }
+  console.log(`~ Fiyat güncellendi: ${product.name} → ${price}`);
+}
+
 // Mevcut menüye DOKUNMADAN sadece eksik olanları ekler: adı zaten var olan ürünler,
 // kategoriler ve opsiyon grupları olduğu gibi kalır (fiyat/stok/elle yapılan düzenlemeler
 // korunur). Yeni ürün eklerken `npm run add-menu-items` bunu kullanır.
@@ -144,6 +164,11 @@ async function addMissingMenuItems(branchId) {
     groupMap.set(def.name, group);
   }
 
+  for (const name of menu.removedProducts || []) {
+    const r = await Product.deleteMany({ branchId, name });
+    if (r.deletedCount) console.log(`- Ürün kaldırıldı: ${name}`);
+  }
+
   let added = 0;
   for (const catDef of menu.categories) {
     let category = await Category.findOne({ branchId, name: catDef.name });
@@ -159,8 +184,11 @@ async function addMissingMenuItems(branchId) {
     }
     let order = await Product.countDocuments({ branchId, categoryId: category._id });
     for (const productDef of catDef.products) {
-      const exists = await Product.exists({ branchId, name: productDef.name });
-      if (exists) continue;
+      const exists = await Product.findOne({ branchId, name: productDef.name });
+      if (exists) {
+        if (catDef.resync) await resyncProduct(exists, productDef);
+        continue;
+      }
       await createProduct(branchId, category, catDef, productDef, order, groupMap);
       order += 1;
       added += 1;
